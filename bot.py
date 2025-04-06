@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # OpenAI 配置（兼容 API2D）
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
-    base_url="https://api.api2d.com/v1"
+    base_url="https://oa.api2d.net"
 )
 
 # 配置 Redis
