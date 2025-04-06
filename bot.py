@@ -23,47 +23,50 @@ MAX_HISTORY_LEN = 2000  # 字符数限制
 
 
 # 处理消息的函数
+# async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     user_id = str(update.effective_user.id)
+#     user_input = update.message.text
+#
+#     # 从 Redis 获取用户聊天历史
+#     chat_history = r.get(user_id)
+#     if chat_history:
+#         chat_history = chat_history.decode()
+#     else:
+#         chat_history = ""
+#
+#     # 构建 messages 格式（GPT 聊天格式）
+#     messages = []
+#
+#     # 解析历史记录为 Chat messages
+#     for line in chat_history.strip().split("\n"):
+#         if line.startswith("User:"):
+#             messages.append({"role": "user", "content": line[5:].strip()})
+#         elif line.startswith("Bot:"):
+#             messages.append({"role": "assistant", "content": line[4:].strip()})
+#
+#     # 加入当前用户输入
+#     messages.append({"role": "user", "content": user_input})
+#
+#     # 新接口调用 ChatCompletion
+#     response = client.chat.completions.create(
+#         model="gpt-3.5-turbo",
+#         messages=messages,
+#         max_tokens=100
+#     )
+#
+#     reply = response.choices[0].message.content.strip()
+#
+#     # 更新 Redis 聊天历史
+#     new_history = chat_history + f"\nUser: {user_input}\nBot: {reply}"
+#     if len(new_history) > MAX_HISTORY_LEN:
+#         new_history = new_history[-MAX_HISTORY_LEN:]
+#     r.set(user_id, new_history, ex=3600)
+#
+#     await update.message.reply_text(reply)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = str(update.effective_user.id)
     user_input = update.message.text
-
-    # 从 Redis 获取用户聊天历史
-    chat_history = r.get(user_id)
-    if chat_history:
-        chat_history = chat_history.decode()
-    else:
-        chat_history = ""
-
-    # 构建 messages 格式（GPT 聊天格式）
-    messages = []
-
-    # 解析历史记录为 Chat messages
-    for line in chat_history.strip().split("\n"):
-        if line.startswith("User:"):
-            messages.append({"role": "user", "content": line[5:].strip()})
-        elif line.startswith("Bot:"):
-            messages.append({"role": "assistant", "content": line[4:].strip()})
-
-    # 加入当前用户输入
-    messages.append({"role": "user", "content": user_input})
-
-    # 新接口调用 ChatCompletion
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-        max_tokens=100
-    )
-
-    reply = response.choices[0].message.content.strip()
-
-    # 更新 Redis 聊天历史
-    new_history = chat_history + f"\nUser: {user_input}\nBot: {reply}"
-    if len(new_history) > MAX_HISTORY_LEN:
-        new_history = new_history[-MAX_HISTORY_LEN:]
-    r.set(user_id, new_history, ex=3600)
-
-    await update.message.reply_text(reply)
-
+    await update.message.reply_text(f"你说的是：{user_input}")
 
 # 启动命令处理
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
