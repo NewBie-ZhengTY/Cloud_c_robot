@@ -37,16 +37,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(chat_history) > MAX_HISTORY_LEN:
         chat_history = chat_history[-MAX_HISTORY_LEN:]
 
-    # 使用新的接口：ChatCompletion
-    response = openai.ChatCompletion.create(
+    # 新的接口
+    response = openai.Completion.create(
         model="gpt-3.5-turbo",  # 付费模型
-        messages=[  # 传递消息历史
-            {"role": "system", "content": "你是一个友好的聊天机器人"},
-            {"role": "user", "content": chat_history}
-        ]
+        prompt=f"{chat_history}\nBot: ",  # 让模型从聊天历史生成回复
+        max_tokens=50
     )
 
-    reply = response['choices'][0]['message']['content']
+    reply = response.choices[0].text.strip()
 
     # 更新 Redis 中的聊天历史（保留历史）
     chat_history += f"\nBot: {reply}"
