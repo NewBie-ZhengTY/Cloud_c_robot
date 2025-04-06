@@ -9,10 +9,14 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 # 加载环境变量
 load_dotenv()
 
+# 配置日志记录
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # OpenAI 配置（兼容 API2D）
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
-    base_url="https://api.api2d.net/v1"
+    base_url="https://api.api2d.com/v1"
 )
 
 # 配置 Redis
@@ -23,50 +27,59 @@ MAX_HISTORY_LEN = 2000  # 字符数限制
 
 
 # 处理消息的函数
-# async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     user_id = str(update.effective_user.id)
-#     user_input = update.message.text
-#
-#     # 从 Redis 获取用户聊天历史
-#     chat_history = r.get(user_id)
-#     if chat_history:
-#         chat_history = chat_history.decode()
-#     else:
-#         chat_history = ""
-#
-#     # 构建 messages 格式（GPT 聊天格式）
-#     messages = []
-#
-#     # 解析历史记录为 Chat messages
-#     for line in chat_history.strip().split("\n"):
-#         if line.startswith("User:"):
-#             messages.append({"role": "user", "content": line[5:].strip()})
-#         elif line.startswith("Bot:"):
-#             messages.append({"role": "assistant", "content": line[4:].strip()})
-#
-#     # 加入当前用户输入
-#     messages.append({"role": "user", "content": user_input})
-#
-#     # 新接口调用 ChatCompletion
-#     response = client.chat.completions.create(
-#         model="gpt-3.5-turbo",
-#         messages=messages,
-#         max_tokens=100
-#     )
-#
-#     reply = response.choices[0].message.content.strip()
-#
-#     # 更新 Redis 聊天历史
-#     new_history = chat_history + f"\nUser: {user_input}\nBot: {reply}"
-#     if len(new_history) > MAX_HISTORY_LEN:
-#         new_history = new_history[-MAX_HISTORY_LEN:]
-#     r.set(user_id, new_history, ex=3600)
-#
-#     await update.message.reply_text(reply)
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
     user_input = update.message.text
-    await update.message.reply_text(f"你说的是：{user_input}")
+
+    # 从 Redis 获取用户聊天历史
+    try:
+        chat_history = r.get(user_id)
+        if chat_history:
+            chat_history = chat_history.decode()
+        else:
+            chat_history = ""  # 如果没有历史记录，初始化为空字符串
+    except Exception as e:
+        logger.error(f"Redis 获取历史记录失败: {e}")
+        chat_history = ""
+
+    # 构建 messages 格式（GPT 聊天格式）
+    messages = []
+
+    # 解析历史记录为 Chat messages
+    for line in chat_history.strip().split("\n"):
+        if line.startswith("User:"):
+            messages.append({"role": "user", "content": line[5:].strip()})
+        elif line.startswith("Bot:"):
+            messages.append({"role": "assistant", "content": line[4:].strip()})
+
+    # 加入当前用户输入
+    messages.append({"role": "user", "content": user_input})
+
+    try:
+        # 新接口调用 ChatCompletion
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=100
+        )
+        reply = response.choices[0].message["content"].strip()
+    except Exception as e:
+        logger.error(f"OpenAI 请求失败: {e}")
+        reply = "发生了错误，请稍后再试。"
+
+    # 更新 Redis 聊天历史
+    try:
+        new_history = chat_history + f"\nUser: {user_input}\nBot: {reply}"
+        # 截断历史，确保最大长度不超过设置值
+        if len(new_history) > MAX_HISTORY_LEN:
+            new_history = new_history[-MAX_HISTORY_LEN:]
+        r.set(user_id, new_history, ex=3600)  # 设置缓存过期时间为1小时
+    except Exception as e:
+        logger.error(f"Redis 更新历史失败: {e}")
+
+    # 发送回复
+    await update.message.reply_text(reply)
+
 
 # 启动命令处理
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
