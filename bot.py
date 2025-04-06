@@ -1,18 +1,19 @@
 import os
 import redis
-import openai
 import logging
 from telegram import Update
-from openai import OpenAI
 from dotenv import load_dotenv
+from openai import OpenAI
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 # 加载环境变量
 load_dotenv()
 
 # OpenAI 配置（兼容 API2D）
-openai.api_key = os.getenv("OPENAI_API_KEY")
-openai.api_base = "https://api.api2d.net/v1"  # 这是重点
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.api2d.net/v1"
+)
 
 # 配置 Redis
 r = redis.from_url(os.getenv("REDIS_URL"))
@@ -29,26 +30,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 从 Redis 获取用户聊天历史
     chat_history = r.get(user_id)
     if chat_history:
-        chat_history = chat_history.decode() + f"\nUser: {user_input}"
+        chat_history = chat_history.decode()
     else:
-        chat_history = f"User: {user_input}"
+        chat_history = ""
 
-    # 如果历史太长，截断
-    if len(chat_history) > MAX_HISTORY_LEN:
-        chat_history = chat_history[-MAX_HISTORY_LEN:]
+    # 构建 messages 格式（GPT 聊天格式）
+    messages = []
 
-    # 新的接口
-    response = openai.Completion.create(
-        model="gpt-3.5-turbo",  # 付费模型
-        prompt=f"{chat_history}\nBot: ",  # 让模型从聊天历史生成回复
-        max_tokens=50
+    # 解析历史记录为 Chat messages
+    for line in chat_history.strip().split("\n"):
+        if line.startswith("User:"):
+            messages.append({"role": "user", "content": line[5:].strip()})
+        elif line.startswith("Bot:"):
+            messages.append({"role": "assistant", "content": line[4:].strip()})
+
+    # 加入当前用户输入
+    messages.append({"role": "user", "content": user_input})
+
+    # 新接口调用 ChatCompletion
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=100
     )
 
-    reply = response.choices[0].text.strip()
+    reply = response.choices[0].message.content.strip()
 
-    # 更新 Redis 中的聊天历史（保留历史）
-    chat_history += f"\nBot: {reply}"
-    r.set(user_id, chat_history, ex=3600)  # 设置“记忆”保存时长：1小时
+    # 更新 Redis 聊天历史
+    new_history = chat_history + f"\nUser: {user_input}\nBot: {reply}"
+    if len(new_history) > MAX_HISTORY_LEN:
+        new_history = new_history[-MAX_HISTORY_LEN:]
+    r.set(user_id, new_history, ex=3600)
 
     await update.message.reply_text(reply)
 
