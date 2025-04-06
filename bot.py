@@ -37,10 +37,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(chat_history) > MAX_HISTORY_LEN:
         chat_history = chat_history[-MAX_HISTORY_LEN:]
 
-    # 新的接口
-    response = openai.completions.create(
+    # 使用新的接口：ChatCompletion
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",  # 付费模型
-        messages=[
+        messages=[  # 传递消息历史
             {"role": "system", "content": "你是一个友好的聊天机器人"},
             {"role": "user", "content": chat_history}
         ]
