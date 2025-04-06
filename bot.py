@@ -2,6 +2,7 @@ import os
 import redis
 import logging
 from telegram import Update
+from telegram.ext import CommandHandler# 加入兴趣匹配
 from dotenv import load_dotenv
 from openai import OpenAI
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
@@ -88,6 +89,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("你好，我是 ChatGPT Telegram 机器人。请发送消息给我！")
 
+# 设置用户兴趣
+async def set_interest(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    if not context.args:
+        await update.message.reply_text("请提供你的兴趣，例如：/set_interest 足球")
+        return
+    interest = context.args[0]
+    r.set(f"interest:{user_id}", interest)
+    await update.message.reply_text(f"你的兴趣已设置为：{interest}")
+
+# 查找兴趣匹配用户
+async def find_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    my_interest = r.get(f"interest:{user_id}")
+    if not my_interest:
+        await update.message.reply_text("你还没有设置兴趣，请使用 /set_interest 进行设置。")
+        return
+    my_interest = my_interest.decode()
+
+    matched_users = []
+    for key in r.scan_iter("interest:*"):
+        other_id = key.decode().split(":")[1]
+        if other_id == user_id:
+            continue
+        if r.get(key).decode() == my_interest:
+            matched_users.append(other_id)
+
+    if matched_users:
+        reply = f"和你一样喜欢【{my_interest}】的用户有：\n" + "\n".join(matched_users)
+    else:
+        reply = f"暂时没有和你一样喜欢【{my_interest}】的用户。"
+
+    await update.message.reply_text(reply)
+
 
 # 主函数
 if __name__ == "__main__":
@@ -98,7 +133,10 @@ if __name__ == "__main__":
 
     # 注册命令和消息处理器
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("set_interest", set_interest))  # 新增
+    app.add_handler(CommandHandler("find_match", find_match))  # 新增
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     # 启动 bot 进行消息轮询
     app.run_polling()
+
