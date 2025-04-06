@@ -10,9 +10,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 # 加载环境变量
 load_dotenv()
 
-# 配置 OpenAI API 密钥
+# OpenAI 配置（兼容 API2D）
 openai.api_key = os.getenv("OPENAI_API_KEY")
-print("OpenAI Key:", os.getenv("OPENAI_API_KEY"))
+openai.api_base = "https://api.api2d.net/v1"  # 这是重点
 
 # 配置 Redis
 r = redis.from_url(os.getenv("REDIS_URL"))
