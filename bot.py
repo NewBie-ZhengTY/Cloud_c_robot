@@ -55,13 +55,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 加入当前用户输入
     messages.append({"role": "user", "content": user_input})
 
+    # 新接口调用 ChatCompletion
     try:
-        # 新接口调用 ChatCompletion
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             max_tokens=100
         )
+        # 输出 API 响应日志
+        logger.info(f"OpenAI Response: {response}")
         reply = response.choices[0].message["content"].strip()
     except Exception as e:
         logger.error(f"OpenAI 请求失败: {e}")
