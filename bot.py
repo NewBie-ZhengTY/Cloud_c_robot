@@ -1,6 +1,7 @@
 import os
 import redis
 import logging
+import random
 from telegram import Update
 from telegram.ext import CommandHandler# 加入兴趣匹配
 from dotenv import load_dotenv
@@ -123,6 +124,35 @@ async def find_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(reply)
 
+# 开始游戏
+async def start_guess_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    target = random.randint(1, 100)
+    r.set(f"guessing:{user_id}", target, ex=600)  # 10分钟有效
+    await update.message.reply_text("我已经想好了一个 1 到 100 的数字，你来猜吧！")
+
+# 处理猜测
+async def handle_guess(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.effective_user.id)
+    guess = update.message.text.strip()
+
+    if not guess.isdigit():
+        return  # 忽略非数字输入
+
+    if not r.exists(f"guessing:{user_id}"):
+        return  # 没有在玩游戏
+
+    target = int(r.get(f"guessing:{user_id}"))
+    guess = int(guess)
+
+    if guess < target:
+        await update.message.reply_text("太小了，再试一次！")
+    elif guess > target:
+        await update.message.reply_text("太大了，再试一次！")
+    else:
+        await update.message.reply_text("恭喜你猜对了！")
+        r.delete(f"guessing:{user_id}")
+
 
 # 主函数
 if __name__ == "__main__":
@@ -135,6 +165,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("set_interest", set_interest))  # 新增
     app.add_handler(CommandHandler("find_match", find_match))  # 新增
+    app.add_handler(CommandHandler("guess_number", start_guess_game))#猜数游戏
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     # 启动 bot 进行消息轮询
