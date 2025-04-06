@@ -64,7 +64,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         # 输出 API 响应日志
         logger.info(f"OpenAI Response: {response}")
-        reply = response.choices[0].message["content"].strip()
+        reply = response.choices[0].message.content.strip()
+
     except Exception as e:
         logger.error(f"OpenAI 请求失败: {e}")
         reply = "发生了错误，请稍后再试。"
