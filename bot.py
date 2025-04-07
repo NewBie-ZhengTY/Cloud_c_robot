@@ -11,7 +11,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 
 
-# 加载环境变量
+# 载入环境变量
 load_dotenv()
 
 # 配置日志记录
