@@ -1,16 +1,17 @@
-# 使用官方的 Python 精简镜像
+# Use official Python slim image
 FROM python:3.10-slim
 
-# 设置工作目录
+# Set the working directory
 WORKDIR /app
 
-# 拷贝 requirements 文件并安装依赖
+# Copy requirements file and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 拷贝所有代码文件到容器中
+# Copy all code files into the container
 COPY . .
 
-# 设置容器启动时运行的命令
+# Set the command to run when the container starts
 CMD ["python", "bot.py"]
+
 
