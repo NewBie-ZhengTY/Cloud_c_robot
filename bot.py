@@ -6,7 +6,10 @@ from telegram import Update
 from telegram.ext import CommandHandler# 加入兴趣匹配
 from dotenv import load_dotenv
 from openai import OpenAI
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes,MessageHandler, filters
+
+
 
 # 加载环境变量
 load_dotenv()
@@ -14,6 +17,11 @@ load_dotenv()
 # 配置日志记录
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+MENU = {
+    "快餐": ["汉堡", "炸鸡", "薯条"],
+    "饮料": ["可乐", "奶茶", "果汁"]
+}
 
 # OpenAI 配置（兼容 API2D）
 client = OpenAI(
@@ -153,6 +161,30 @@ async def handle_guess(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("恭喜你猜对了！")
         r.delete(f"guessing:{user_id}")
 
+# /start 命令处理器
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[InlineKeyboardButton(text=category, callback_data=f"menu|{category}")]
+                for category in MENU]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("欢迎点餐，请选择一个分类：", reply_markup=reply_markup)
+
+# 回调按钮处理器
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data.startswith("menu|"):
+        category = data.split("|")[1]
+        items = MENU.get(category, [])
+        keyboard = [[InlineKeyboardButton(text=item, callback_data=f"order|{item}")]
+                    for item in items]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(f"您选择的是「{category}」，请选择商品：", reply_markup=reply_markup)
+
+    elif data.startswith("order|"):
+        item = data.split("|")[1]
+        await query.edit_message_text(f"您的订单是：{item}（模拟下单成功）")
 
 # 主函数
 if __name__ == "__main__":
@@ -166,6 +198,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("set_interest", set_interest))  # 新增
     app.add_handler(CommandHandler("find_match", find_match))  # 新增
     app.add_handler(CommandHandler("guess_number", start_guess_game))#猜数游戏
+    app.add_handler(CallbackQueryHandler(button_handler))#点外卖操作
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     # 启动 bot 进行消息轮询
