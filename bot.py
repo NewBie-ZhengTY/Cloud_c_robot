@@ -23,7 +23,7 @@ MENU = {
     "饮料": ["可乐", "奶茶", "果汁"]
 }
 
-# OpenAI 配置（兼容 API2D）
+# OpenAI （兼容 API2D）
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
     base_url="https://oa.api2d.net"
